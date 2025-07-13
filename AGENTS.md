@@ -291,8 +291,11 @@ dfa.summary(group="time:10D")
    * sphinx / GitHub Pages
    * pytest 覆盖率 > 90 %
 
+测试数据为 data/train.parquet
+需要你使用这个dataframe测试各种案例，并把report输出到data/report.csv。注意真值是ztd_gnss_sigma，需要检验的值有两个，第一个是ztd_nwm，第二个是ztd_nwm-pred。你需要实现分测站/分时间（不同时间间隔都要有）进行检验等功能。
 
 以下是通用指南：
+
 > 本指南为 Codex 生成 Python 软件包时的“行为约束文档”，强调低耦合、高内聚、遵循 SOLID 且避免过度设计，并在整个生命周期内贯彻 YAGNI 与极简主义。([digitalocean.com][1], [geeksforgeeks.org][2])
 
 ## 摘要
