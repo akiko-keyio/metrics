@@ -9,9 +9,17 @@ import numpy as np
 from .stats import ResidualStats
 from .analyzer.array import ArrayAnalyzer
 from .analyzer.dataframe import DataFrameAnalyzer
+from .analyzer.matrix import MatrixAnalyzer
 import pandas as pd
 
-__all__ = ["ResidualStats", "analyze", "main", "ArrayAnalyzer", "DataFrameAnalyzer"]
+__all__ = [
+    "ResidualStats",
+    "analyze",
+    "main",
+    "ArrayAnalyzer",
+    "DataFrameAnalyzer",
+    "MatrixAnalyzer",
+]
 
 
 def analyze(
@@ -25,14 +33,14 @@ def analyze(
 ) -> pd.DataFrame | ResidualStats:
     """Return residual statistics for the given inputs."""
 
-    if isinstance(y_pred, pd.DataFrame) and pred_col and true_col:
-        return DataFrameAnalyzer(y_pred, pred_col, true_col).summary(
-            group=group, metrics=metrics
-        )
+    if isinstance(y_pred, pd.DataFrame):
+        if pred_col and true_col:
+            return DataFrameAnalyzer(y_pred, pred_col, true_col).summary(
+                group=group, metrics=metrics
+            )
+        return MatrixAnalyzer(y_pred).summary(group=group, metrics=metrics)
 
-    return ArrayAnalyzer(np.asarray(list(y_pred), dtype=float), y_true).summary(
-        metrics
-    )
+    return ArrayAnalyzer(np.asarray(list(y_pred), dtype=float), y_true).summary(metrics)
 
 
 def main() -> None:
