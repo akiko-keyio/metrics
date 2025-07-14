@@ -17,6 +17,7 @@ class DataFrameAnalyzer(BaseAnalyzer):
     """Analyze residuals stored in a :class:`pandas.DataFrame`."""
 
     def __init__(self, df: pd.DataFrame, pred_col: str, true_col: str) -> None:
+        """Create an analyzer from ``df`` using prediction and truth columns."""
         self.df = df
         self.pred_col = pred_col
         self.true_col = true_col
@@ -31,6 +32,7 @@ class DataFrameAnalyzer(BaseAnalyzer):
         group: str | list[str] | None = "total",
         metrics: Iterable[str] | None = None,
     ) -> pd.DataFrame:
+        """Return grouped statistics for the DataFrame residuals."""
         # type: ignore[override]
         if group in (None, "total"):
             stats = super().summary(metrics)

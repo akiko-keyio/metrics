@@ -11,6 +11,7 @@ class ArrayAnalyzer(BaseAnalyzer):
     """Analyze vector residuals."""
 
     def __init__(self, y_pred: np.ndarray, y_true: np.ndarray | float = 0.0) -> None:
+        """Compute residuals from ``y_pred`` and ``y_true`` and initialise base."""
         y_pred = np.asarray(y_pred, dtype=float)
         if np.isscalar(y_true):
             y_true_arr = np.full_like(y_pred, float(y_true))
