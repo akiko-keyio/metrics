@@ -8,19 +8,31 @@ import numpy as np
 
 from .stats import ResidualStats
 from .analyzer.array import ArrayAnalyzer
+from .analyzer.dataframe import DataFrameAnalyzer
+import pandas as pd
 
-__all__ = ["ResidualStats", "analyze", "main", "ArrayAnalyzer"]
+__all__ = ["ResidualStats", "analyze", "main", "ArrayAnalyzer", "DataFrameAnalyzer"]
 
 
 def analyze(
-    y_pred: Iterable[float],
+    y_pred: Iterable[float] | pd.DataFrame,
     y_true: Iterable[float] | float | None = 0.0,
+    *,
+    pred_col: str | None = None,
+    true_col: str | None = None,
+    group: str | list[str] | None = "total",
     metrics: Iterable[str] | None = None,
-) -> ResidualStats:
-    """Return residual statistics for ``y_pred`` and ``y_true``."""
+) -> pd.DataFrame | ResidualStats:
+    """Return residual statistics for the given inputs."""
 
-    analyzer = ArrayAnalyzer(np.asarray(list(y_pred), dtype=float), y_true)
-    return analyzer.summary(metrics)
+    if isinstance(y_pred, pd.DataFrame) and pred_col and true_col:
+        return DataFrameAnalyzer(y_pred, pred_col, true_col).summary(
+            group=group, metrics=metrics
+        )
+
+    return ArrayAnalyzer(np.asarray(list(y_pred), dtype=float), y_true).summary(
+        metrics
+    )
 
 
 def main() -> None:
