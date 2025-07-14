@@ -15,9 +15,11 @@ def register_metric(
     name: str,
 ) -> Callable[[Callable[..., float]], Callable[..., float]]:
     """Register *name* as a metric."""
+
     def decorator(fn: Callable[..., float]) -> Callable[..., float]:
         METRICS[name] = fn
         return fn
+
     return decorator
 
 
