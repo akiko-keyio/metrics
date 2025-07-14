@@ -11,7 +11,7 @@ from __future__ import annotations
 import pandas as pd
 
 
-def make_time_grouper(index: pd.DatetimeIndex, rule: str) -> pd.Series:
+def make_time_grouper(index: pd.Index | pd.Series, rule: str) -> pd.Series:
     """Return labels for ``index`` grouped according to ``rule``.
 
     Parameters
@@ -28,6 +28,11 @@ def make_time_grouper(index: pd.DatetimeIndex, rule: str) -> pd.Series:
     """
 
     rule = rule.upper()
+    dt = pd.to_datetime(index)
+    if isinstance(dt, pd.Series):
+        if rule in {"Q", "QS", "Q-DEC"}:
+            return dt.dt.to_period("Q")
+        return dt.dt.floor(rule)
     if rule in {"Q", "QS", "Q-DEC"}:
-        return index.to_period("Q")
-    return index.floor(rule)
+        return dt.to_period("Q")
+    return dt.floor(rule)

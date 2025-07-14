@@ -48,8 +48,9 @@ class MatrixAnalyzer(BaseAnalyzer):
             else:
                 raise KeyError(f"unsupported group {g}")
 
-        base = {"rms", "bias", "std"}
-        wanted = base | set(metrics or ())
-        agg_funcs = {name: METRICS[name] for name in wanted}
-        result = long.groupby(group_keys)["res"].agg(agg_funcs)
+        base = ["rms", "bias", "std"]
+        wanted = base + list(metrics or [])
+        funcs = [METRICS[name] for name in wanted]
+        result = long.groupby(group_keys)["res"].agg(funcs)
+        result.columns = wanted
         return result.reset_index()
