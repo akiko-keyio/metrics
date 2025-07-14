@@ -44,8 +44,10 @@ def std(res: np.ndarray) -> float:
 
 @register_metric("r2")
 def r2(res: np.ndarray, y_true: np.ndarray, y_pred: np.ndarray) -> float:
-    """Coefficient of determination using :mod:`sklearn`."""
+    """Coefficient of determination without external dependencies."""
 
-    from sklearn.metrics import r2_score
-
-    return r2_score(y_true, y_pred)
+    ss_res = np.nansum(res**2)
+    ss_tot = np.nansum((y_true - np.nanmean(y_true)) ** 2)
+    if ss_tot == 0:
+        return np.nan
+    return 1.0 - ss_res / ss_tot
