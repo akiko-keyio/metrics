@@ -8,8 +8,10 @@ authors = [
 ]
 requires-python = ">=3.10"
 dependencies = [
+    "numba>=0.61.2",
     "numpy",
     "pandas",
+    "polars>=1.31.0",
     "pyarrow>=20.0.0",
 ]
 
