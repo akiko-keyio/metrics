@@ -1,4 +1,6 @@
 from __future__ import annotations
+
+import time
 from collections.abc import Iterable
 from typing import cast, List
 
@@ -40,7 +42,7 @@ class DataFrameAnalyzer(BaseAnalyzer):
     def _prepare_long(self, group_list: list[str]) -> pd.DataFrame:
         """Return a *long* DataFrame with columns [*group*..., ``var``, ``res``]."""
         df = self.df.copy()
-
+        t0=time.perf_counter()
         # If any temporal grouping keys are requested, extract them from the `time` column
         temporal_keys = {"year", "season", "month", "hour"}
         requested_time = [g for g in group_list if g in temporal_keys]
@@ -74,6 +76,7 @@ class DataFrameAnalyzer(BaseAnalyzer):
             value_name="pred",
         )
         df_long["res"] = df_long["pred"] - df_long[self.true_col]
+        print("produce df_long",time.perf_counter() - t0)
         return df_long
 
     def summary(
