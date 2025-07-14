@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pandas as pd
 
-from .analyzer.dataframe import DataFrameAnalyzer
+from metrics import DataFrameAnalyzer
 
 
 def main() -> None:
