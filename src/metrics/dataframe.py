@@ -10,7 +10,7 @@ import pandas as pd
 from metrics.metrics_factory import METRICS
 
 
-class DataFrameAnalyzer():
+class DataFrameAnalyzer:
     """
     Analyzer for computing residual statistics on a pandas.DataFrame.
 
@@ -29,19 +29,23 @@ class DataFrameAnalyzer():
         Name of the ground-truth column.
     """
 
-    def __init__(self, df: pd.DataFrame, pred_col: str | list[str], true_col: str) -> None:
+    def __init__(
+        self, df: pd.DataFrame, pred_col: str | list[str], true_col: str
+    ) -> None:
         self.df = df
         self.true_col = true_col
-        self.pred_cols: List[str] = [pred_col] if isinstance(pred_col, str) else list(pred_col)
+        self.pred_cols: List[str] = (
+            [pred_col] if isinstance(pred_col, str) else list(pred_col)
+        )
         self.pred_col = pred_col
 
     def summary(
-            self,
-            group: str | list[str] | None = "total",
-            metrics: Iterable[str] | None = None,
-            *,
-            engine: str = "auto",
-            ddof: int = 1,
+        self,
+        group: str | list[str] | None = "total",
+        metrics: Iterable[str] | None = None,
+        *,
+        engine: str = "auto",
+        ddof: int = 1,
     ) -> pd.DataFrame:
         """
         Compute error metrics, optionally grouped by specified columns.
@@ -71,7 +75,9 @@ class DataFrameAnalyzer():
     # ------------------------------------------------------------------ #
     # Private Helper Methods for Pre-processing
     # ------------------------------------------------------------------ #
-    def _prepare_temporal_cols(self, df: pd.DataFrame, group_list: List[str]) -> pd.DataFrame:
+    def _prepare_temporal_cols(
+        self, df: pd.DataFrame, group_list: List[str]
+    ) -> pd.DataFrame:
         """Adds temporal columns (year, season, etc.) to the DataFrame if needed."""
         temporal_keys = {"year", "season", "month", "hour"}
         needed_keys = [g for g in group_list if g in temporal_keys]
@@ -95,16 +101,27 @@ class DataFrameAnalyzer():
         if "season" in needed_keys and "season" not in df_out.columns:
             # 使用月份直接映射，代码更清晰
             season_map = {
-                1: 'Winter', 2: 'Winter', 3: 'Spring', 4: 'Spring', 5: 'Spring',
-                6: 'Summer', 7: 'Summer', 8: 'Summer', 9: 'Autumn', 10: 'Autumn',
-                11: 'Autumn', 12: 'Winter'
+                1: "Winter",
+                2: "Winter",
+                3: "Spring",
+                4: "Spring",
+                5: "Spring",
+                6: "Summer",
+                7: "Summer",
+                8: "Summer",
+                9: "Autumn",
+                10: "Autumn",
+                11: "Autumn",
+                12: "Winter",
             }
             # 直接使用 month 列进行映射
             df_out["season"] = time_idx.month.map(season_map)
 
         return df_out
 
-    def _prepare_numpy_groups(self, group: str | list[str] | None) -> Tuple[List[str], pd.DataFrame, Dict[str, Any]]:
+    def _prepare_numpy_groups(
+        self, group: str | list[str] | None
+    ) -> Tuple[List[str], pd.DataFrame, Dict[str, Any]]:
         """
         Shared preparation logic for both NumPy engines.
         Parses group keys, prepares temporal columns, and encodes groups.
@@ -112,7 +129,9 @@ class DataFrameAnalyzer():
         if group in (None, "total"):
             group_list: List[str] = []
         else:
-            group_list = [group] if isinstance(group, str) else list(cast(list[str], group))
+            group_list = (
+                [group] if isinstance(group, str) else list(cast(list[str], group))
+            )
 
         # 准备带时间列的 DataFrame
         df_work = self._prepare_temporal_cols(self.df, group_list)
@@ -146,12 +165,17 @@ class DataFrameAnalyzer():
         if group in (None, "total"):
             group_list: List[str] = []
         else:
-            group_list = [group] if isinstance(group, str) else list(cast(list[str], group))
+            group_list = (
+                [group] if isinstance(group, str) else list(cast(list[str], group))
+            )
 
         df = self._prepare_temporal_cols(self.df, group_list)
         id_vars = [self.true_col] + group_list
         df_long = df.reindex(columns=id_vars + self.pred_cols).melt(
-            id_vars=id_vars, value_vars=self.pred_cols, var_name="var", value_name="pred",
+            id_vars=id_vars,
+            value_vars=self.pred_cols,
+            var_name="var",
+            value_name="pred",
         )
         df_long["res"] = df_long["pred"] - df_long[self.true_col]
 
@@ -161,23 +185,31 @@ class DataFrameAnalyzer():
                 fn = METRICS[m]
                 sig = signature(fn)
                 kwargs = {}
-                if 'res' in sig.parameters: kwargs['res'] = df_group['res']
-                if 'y_true' in sig.parameters: kwargs['y_true'] = df_group[self.true_col]
-                if 'y_pred' in sig.parameters: kwargs['y_pred'] = df_group['pred']
-                if 'ddof' in sig.parameters: kwargs['ddof'] = ddof
+                if "res" in sig.parameters:
+                    kwargs["res"] = df_group["res"]
+                if "y_true" in sig.parameters:
+                    kwargs["y_true"] = df_group[self.true_col]
+                if "y_pred" in sig.parameters:
+                    kwargs["y_pred"] = df_group["pred"]
+                if "ddof" in sig.parameters:
+                    kwargs["ddof"] = ddof
                 results[m] = fn(**kwargs)
             return pd.Series(results)
 
         keys = group_list + ["var"] if group_list else ["var"]
-        out = (df_long.groupby(keys, observed=True)
-               .apply(agg_fn, include_groups=False)
-               .reset_index())
+        out = (
+            df_long.groupby(keys, observed=True)
+            .apply(agg_fn, include_groups=False)
+            .reset_index()
+        )
         return out[keys + sorted(list(metrics))]
 
     # ------------------------------------------------------------------ #
     # NumPy Engines
     # ------------------------------------------------------------------ #
-    def _summary_numpy_bincount(self, group, metrics: set[str], ddof: int) -> pd.DataFrame:
+    def _summary_numpy_bincount(
+        self, group, metrics: set[str], ddof: int
+    ) -> pd.DataFrame:
         # ---- 1. 使用辅助方法准备分组信息 ----
         group_list, df_work, group_info = self._prepare_numpy_groups(group)
         base_gid = group_info["base_gid"]
@@ -187,7 +219,9 @@ class DataFrameAnalyzer():
         # ---- 2. 转换数据为NumPy数组 (此部分特定于 bincount) ----
         y_true_all = df_work[self.true_col].to_numpy(dtype=float)
         n_pred = len(self.pred_cols)
-        y_pred_stacked = np.stack([df_work[col].to_numpy(dtype=float) for col in self.pred_cols], axis=0)
+        y_pred_stacked = np.stack(
+            [df_work[col].to_numpy(dtype=float) for col in self.pred_cols], axis=0
+        )
         res_stacked = y_pred_stacked - y_true_all
 
         # ---- 3. 编码 'var' 维度并计算完整 gid ----
@@ -209,39 +243,52 @@ class DataFrameAnalyzer():
         # (此逻辑块与之前版本相同, 已高度优化)
         n = np.bincount(gid_masked, minlength=final_size)
         sum_res = np.bincount(gid_masked, weights=res_flat[mask], minlength=final_size)
-        sumsq_res = np.bincount(gid_masked, weights=res_flat[mask] ** 2, minlength=final_size)
+        sumsq_res = np.bincount(
+            gid_masked, weights=res_flat[mask] ** 2, minlength=final_size
+        )
         with np.errstate(divide="ignore", invalid="ignore"):
             bias = sum_res / n
             rms = np.sqrt(sumsq_res / n)
-            pop_var = np.maximum(sumsq_res / n - bias ** 2, 0.0)
+            pop_var = np.maximum(sumsq_res / n - bias**2, 0.0)
             if ddof > 0:
-                correction_factor = np.divide(n, n - ddof, where=(n > ddof), out=np.full_like(n, np.nan, dtype=float))
+                correction_factor = np.divide(
+                    n,
+                    n - ddof,
+                    where=(n > ddof),
+                    out=np.full_like(n, np.nan, dtype=float),
+                )
                 std = np.sqrt(pop_var * correction_factor)
             else:
                 std = np.sqrt(pop_var)
         cols = {"bias": bias, "rms": rms, "std": std}
         if "r2" in metrics:
-            sum_y = np.bincount(gid_masked, weights=y_true_tiled[mask], minlength=final_size)
-            sumsq_y = np.bincount(gid_masked, weights=y_true_tiled[mask] ** 2, minlength=final_size)
+            sum_y = np.bincount(
+                gid_masked, weights=y_true_tiled[mask], minlength=final_size
+            )
+            sumsq_y = np.bincount(
+                gid_masked, weights=y_true_tiled[mask] ** 2, minlength=final_size
+            )
             with np.errstate(divide="ignore", invalid="ignore"):
                 mean_y = sum_y / n
-                ss_tot = sumsq_y - n * mean_y ** 2
+                ss_tot = sumsq_y - n * mean_y**2
                 r2 = 1.0 - sumsq_res / ss_tot
                 r2[(ss_tot == 0) | (n == 0)] = np.nan
             cols["r2"] = r2
 
         # ---- 6. 构建结果DataFrame ----
         if not full_group_names:
-            out = pd.DataFrame({'var': self.pred_cols})
+            out = pd.DataFrame({"var": self.pred_cols})
         else:
             mindex = pd.MultiIndex.from_product(full_levels, names=full_group_names)
             out = mindex.to_frame(index=False)
         for k in sorted(metrics):
             out[k] = cols[k]
-        out = out.dropna(subset=list(metrics), how='all').reset_index(drop=True)
+        out = out.dropna(subset=list(metrics), how="all").reset_index(drop=True)
         return out[full_group_names + sorted(list(metrics))]
 
-    def _summary_numpy_generic(self, group, metrics: set[str], ddof: int) -> pd.DataFrame:
+    def _summary_numpy_generic(
+        self, group, metrics: set[str], ddof: int
+    ) -> pd.DataFrame:
         # ---- 1. 使用辅助方法准备分组信息 ----
         group_list, df_work, group_info = self._prepare_numpy_groups(group)
         base_gid = group_info["base_gid"]
@@ -250,17 +297,25 @@ class DataFrameAnalyzer():
 
         # ---- 2. 准备数据 (此部分特定于 generic) ----
         y_true_all = df_work[self.true_col].to_numpy(dtype=float)
-        all_pred_arrays = {pc: df_work[pc].to_numpy(dtype=float) for pc in self.pred_cols}
+        all_pred_arrays = {
+            pc: df_work[pc].to_numpy(dtype=float) for pc in self.pred_cols
+        }
 
         # ---- 3. 循环每个预测列并计算指标 ----
         results_frames = []
         for pred_col, y_pred_all in all_pred_arrays.items():
             res_all = y_pred_all - y_true_all
             mask = ~np.isnan(res_all) & ~np.isnan(y_true_all) & ~np.isnan(y_pred_all)
-            gid, res, y_true, y_pred = base_gid[mask], res_all[mask], y_true_all[mask], y_pred_all[mask]
-            if gid.size == 0: continue
+            gid, res, y_true, y_pred = (
+                base_gid[mask],
+                res_all[mask],
+                y_true_all[mask],
+                y_pred_all[mask],
+            )
+            if gid.size == 0:
+                continue
 
-            sorter = np.argsort(gid, kind='mergesort')
+            sorter = np.argsort(gid, kind="mergesort")
             sorted_gid = gid[sorter]
             unique_groups, group_starts = np.unique(sorted_gid, return_index=True)
 
@@ -269,22 +324,32 @@ class DataFrameAnalyzer():
                 fn = METRICS[metric_name]
                 sig = signature(fn)
                 kwargs_template = {}
-                if 'res' in sig.parameters: kwargs_template['res'] = np.split(res[sorter], group_starts[1:])
-                if 'y_true' in sig.parameters: kwargs_template['y_true'] = np.split(y_true[sorter], group_starts[1:])
-                if 'y_pred' in sig.parameters: kwargs_template['y_pred'] = np.split(y_pred[sorter], group_starts[1:])
+                if "res" in sig.parameters:
+                    kwargs_template["res"] = np.split(res[sorter], group_starts[1:])
+                if "y_true" in sig.parameters:
+                    kwargs_template["y_true"] = np.split(
+                        y_true[sorter], group_starts[1:]
+                    )
+                if "y_pred" in sig.parameters:
+                    kwargs_template["y_pred"] = np.split(
+                        y_pred[sorter], group_starts[1:]
+                    )
 
                 metric_values = []
                 for i in range(len(unique_groups)):
                     call_kwargs = {k: v[i] for k, v in kwargs_template.items()}
-                    if 'ddof' in sig.parameters: call_kwargs['ddof'] = ddof
+                    if "ddof" in sig.parameters:
+                        call_kwargs["ddof"] = ddof
                     metric_values.append(fn(**call_kwargs))
                 metric_results[metric_name] = np.array(metric_values)
 
             # ---- 4. 构建当前预测列的结果DataFrame ----
             if group_list:
                 group_codes_unraveled = np.unravel_index(unique_groups, group_shapes)
-                group_df_data = {group_list[i]: group_levels[i][group_codes_unraveled[i]] for i in
-                                 range(len(group_list))}
+                group_df_data = {
+                    group_list[i]: group_levels[i][group_codes_unraveled[i]]
+                    for i in range(len(group_list))
+                }
             else:
                 group_df_data = {}
             res_df = pd.DataFrame(group_df_data)
@@ -293,6 +358,7 @@ class DataFrameAnalyzer():
                 res_df[metric_name] = values
             results_frames.append(res_df)
 
-        if not results_frames: return pd.DataFrame()
+        if not results_frames:
+            return pd.DataFrame()
         out = pd.concat(results_frames, ignore_index=True)
         return out[group_list + ["var"] + sorted(list(metrics))]
