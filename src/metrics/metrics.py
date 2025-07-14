@@ -36,10 +36,8 @@ def std(res: np.ndarray) -> float:
 
 @register_metric("r2")
 def r2(res: np.ndarray, y_true: np.ndarray, y_pred: np.ndarray) -> float:
-    """Return the coefficient of determination."""
+    """Return the coefficient of determination using scikit-learn."""
 
-    ss_res = np.nansum((y_true - y_pred) ** 2)
-    ss_tot = np.nansum((y_true - np.nanmean(y_true)) ** 2)
-    if ss_tot == 0:
-        return np.nan
-    return 1.0 - ss_res / ss_tot
+    from sklearn.metrics import r2_score
+
+    return r2_score(y_true, y_pred)
