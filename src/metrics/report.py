@@ -8,6 +8,7 @@ from .analyzer.dataframe import DataFrameAnalyzer
 
 
 def main() -> None:
+    """Read ``train.parquet`` and write a CSV report of residual statistics."""
     df = pd.read_parquet("data/train.parquet")
 
     reports = []

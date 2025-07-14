@@ -1,4 +1,9 @@
-"""Public API for the metrics package."""
+"""High level entry points for the residual analysis package.
+
+The package exposes a single :func:`analyze` convenience function which will
+dispatch the input data to the appropriate analyzer implementation.  It
+supports numpy arrays, pandas ``DataFrame`` objects and plain iterables.
+"""
 
 from __future__ import annotations
 
@@ -31,7 +36,29 @@ def analyze(
     group: str | list[str] | None = "total",
     metrics: Iterable[str] | None = None,
 ) -> pd.DataFrame | ResidualStats:
-    """Return residual statistics for the given inputs."""
+    """Compute residual statistics for various input types.
+
+    Parameters
+    ----------
+    y_pred:
+        Predicted values or a :class:`pandas.DataFrame` containing them.
+    y_true:
+        True values matching ``y_pred`` or a scalar baseline.
+    pred_col, true_col:
+        When ``y_pred`` is a DataFrame these specify the column names.
+    group:
+        Optional grouping rule(s) for aggregating the statistics.  ``"total"``
+        returns overall metrics while ``"time:<rule>"`` or a list provides
+        time-based or multi column grouping.
+    metrics:
+        Additional metric names to compute besides the defaults.
+
+    Returns
+    -------
+    pandas.DataFrame | ResidualStats
+        Either a table of grouped statistics or a single ``ResidualStats``
+        instance depending on the ``group`` argument.
+    """
 
     if isinstance(y_pred, pd.DataFrame):
         if pred_col and true_col:
@@ -44,6 +71,6 @@ def analyze(
 
 
 def main() -> None:
-    """Entry point for ``python -m metrics``."""
+    """Entry point for ``python -m metrics`` used by the console script."""
 
     print("Hello from metrics!")

@@ -1,3 +1,5 @@
+"""Data structures for summarising residual statistics."""
+
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass

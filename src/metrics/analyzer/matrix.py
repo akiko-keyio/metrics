@@ -16,6 +16,7 @@ class MatrixAnalyzer(BaseAnalyzer):
     """Analyze residual matrices (time rows, site columns)."""
 
     def __init__(self, mat: pd.DataFrame) -> None:
+        """Create an analyzer from a matrix-like ``DataFrame``."""
         self.mat = mat
         super().__init__(mat.to_numpy().ravel())
 
@@ -24,6 +25,7 @@ class MatrixAnalyzer(BaseAnalyzer):
         group: str | list[str] | None = "total",
         metrics: Iterable[str] | None = None,
     ) -> pd.DataFrame:
+        """Return residual statistics aggregated over the requested groups."""
         if group in (None, "total"):
             stats = super().summary(metrics)
             return pd.DataFrame([stats.as_dict()])

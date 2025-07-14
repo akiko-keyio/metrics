@@ -1,4 +1,10 @@
-"""Helper utilities for time-based grouping."""
+"""Helper utilities for time-based grouping.
+
+These helpers convert :class:`~pandas.DatetimeIndex` objects into labels that
+can be fed directly into ``pandas`` aggregation functions.  Only a very small
+subset of ``pandas`` grouping functionality is implemented as required by the
+package.
+"""
 
 from __future__ import annotations
 
@@ -6,7 +12,20 @@ import pandas as pd
 
 
 def make_time_grouper(index: pd.DatetimeIndex, rule: str) -> pd.Series:
-    """Return a Series representing *index* grouped by *rule*."""
+    """Return labels for ``index`` grouped according to ``rule``.
+
+    Parameters
+    ----------
+    index:
+        Index to convert into grouping labels.
+    rule:
+        Pandas offset alias such as ``"H"`` or ``"3D"``.
+
+    Returns
+    -------
+    pandas.Series
+        A series of group labels used for aggregation.
+    """
 
     rule = rule.upper()
     if rule in {"Q", "QS", "Q-DEC"}:
