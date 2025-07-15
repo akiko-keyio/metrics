@@ -1,4 +1,4 @@
-# metrics/metrics_factory.py (修正后)
+# metrics/metrics_factory.py
 
 """Collection of built-in metric functions used by the analyzers."""
 
@@ -48,8 +48,8 @@ def std(res: np.ndarray, *, ddof: int = 0) -> float:
         Delta Degrees of Freedom. The divisor used in calculations is N - ddof,
         where N is the number of elements. ddof=1 provides an unbiased estimate.
     """
-    # np.nanstd 内部已经处理了 n <= ddof 的情况，会返回 nan 并有 RuntimeWarning
-    # 我们这里无需额外检查
+    # ``numpy.nanstd`` already handles the case ``n <= ddof`` and emits a
+    # RuntimeWarning, so no extra check is required here.
     return np.nanstd(res, ddof=ddof)
 
 
