@@ -32,6 +32,7 @@ class DataFrameAnalyzer:
     def __init__(
         self, df: pd.DataFrame, pred_col: str | list[str], true_col: str
     ) -> None:
+        """Initialize the analyzer with source columns."""
         self.df = df
         self.true_col = true_col
         self.pred_cols: List[str] = (
@@ -47,11 +48,7 @@ class DataFrameAnalyzer:
         engine: str = "auto",
         ddof: int = 1,
     ) -> pd.DataFrame:
-        """
-        Compute error metrics, optionally grouped by specified columns.
-
-        (文档与之前版本一致)
-        """
+        """Compute error metrics, optionally grouped by the given columns."""
         if not isinstance(ddof, int) or ddof < 0:
             raise ValueError("ddof must be a non-negative integer.")
 
@@ -95,11 +92,12 @@ class DataFrameAnalyzer:
         if "year" in needed_keys and "year" not in df_out.columns:
             df_out["year"] = time_idx.year
         if "month" in needed_keys and "month" not in df_out.columns:
-            df_out["month"] = time_idx.month  # <--- 直接使用 time_idx.month
+            # directly use ``time_idx.month``
+            df_out["month"] = time_idx.month
         if "hour" in needed_keys and "hour" not in df_out.columns:
             df_out["hour"] = time_idx.hour
         if "season" in needed_keys and "season" not in df_out.columns:
-            # 使用月份直接映射，代码更清晰
+            # map months to seasons for clarity
             season_map = {
                 1: "Winter",
                 2: "Winter",
@@ -114,7 +112,7 @@ class DataFrameAnalyzer:
                 11: "Autumn",
                 12: "Winter",
             }
-            # 直接使用 month 列进行映射
+            # map using the month column
             df_out["season"] = time_idx.month.map(season_map)
 
         return df_out
@@ -133,7 +131,7 @@ class DataFrameAnalyzer:
                 [group] if isinstance(group, str) else list(cast(list[str], group))
             )
 
-        # 准备带时间列的 DataFrame
+        # prepare DataFrame with temporal columns
         df_work = self._prepare_temporal_cols(self.df, group_list)
 
         group_info = {"group_list": group_list}
@@ -162,6 +160,7 @@ class DataFrameAnalyzer:
     # Pandas Fallback Implementation
     # ------------------------------------------------------------------ #
     def _summary_pandas(self, group, metrics: set[str], ddof: int) -> pd.DataFrame:
+        """Compute metrics using pandas operations."""
         if group in (None, "total"):
             group_list: List[str] = []
         else:
@@ -210,13 +209,14 @@ class DataFrameAnalyzer:
     def _summary_numpy_bincount(
         self, group, metrics: set[str], ddof: int
     ) -> pd.DataFrame:
-        # ---- 1. 使用辅助方法准备分组信息 ----
+        """Fast metric computation using ``numpy.bincount``."""
+        # ---- 1. prepare group information using helper ----
         group_list, df_work, group_info = self._prepare_numpy_groups(group)
         base_gid = group_info["base_gid"]
         base_levels = group_info["levels"]
         base_shapes = group_info["shapes"]
 
-        # ---- 2. 转换数据为NumPy数组 (此部分特定于 bincount) ----
+        # ---- 2. convert data to NumPy arrays for the bincount engine ----
         y_true_all = df_work[self.true_col].to_numpy(dtype=float)
         n_pred = len(self.pred_cols)
         y_pred_stacked = np.stack(
@@ -224,7 +224,7 @@ class DataFrameAnalyzer:
         )
         res_stacked = y_pred_stacked - y_true_all
 
-        # ---- 3. 编码 'var' 维度并计算完整 gid ----
+        # ---- 3. encode the 'var' dimension and compute the full gid ----
         var_codes = np.arange(n_pred, dtype=np.int64)
         var_levels = np.array(self.pred_cols)
         full_shapes = tuple(base_shapes + [n_pred])
@@ -232,15 +232,15 @@ class DataFrameAnalyzer:
         full_group_names = group_list + ["var"]
         gid_full = (base_gid * n_pred + var_codes[:, None]).ravel()
 
-        # ---- 4. 准备 bincount 的 weights 并处理 NaN ----
+        # ---- 4. prepare bincount weights and handle NaNs ----
         res_flat, y_pred_flat = res_stacked.ravel(), y_pred_stacked.ravel()
         y_true_tiled = np.tile(y_true_all, n_pred)
         mask = ~np.isnan(res_flat) & ~np.isnan(y_true_tiled) & ~np.isnan(y_pred_flat)
         gid_masked = gid_full[mask]
         final_size = np.prod(full_shapes, dtype=np.int64) if full_shapes else 1
 
-        # ---- 5. 一次 bincount 完成所有计算 ----
-        # (此逻辑块与之前版本相同, 已高度优化)
+        # ---- 5. perform all calculations in a single bincount ----
+        # (this block is unchanged from the previous version and highly optimized)
         n = np.bincount(gid_masked, minlength=final_size)
         sum_res = np.bincount(gid_masked, weights=res_flat[mask], minlength=final_size)
         sumsq_res = np.bincount(
@@ -275,7 +275,7 @@ class DataFrameAnalyzer:
                 r2[(ss_tot == 0) | (n == 0)] = np.nan
             cols["r2"] = r2
 
-        # ---- 6. 构建结果DataFrame ----
+        # ---- 6. build the result DataFrame ----
         if not full_group_names:
             out = pd.DataFrame({"var": self.pred_cols})
         else:
@@ -289,19 +289,20 @@ class DataFrameAnalyzer:
     def _summary_numpy_generic(
         self, group, metrics: set[str], ddof: int
     ) -> pd.DataFrame:
-        # ---- 1. 使用辅助方法准备分组信息 ----
+        """Generic NumPy implementation for metric computation."""
+        # ---- 1. prepare group information using helper ----
         group_list, df_work, group_info = self._prepare_numpy_groups(group)
         base_gid = group_info["base_gid"]
         group_levels = group_info["levels"]
         group_shapes = group_info["shapes"]
 
-        # ---- 2. 准备数据 (此部分特定于 generic) ----
+        # ---- 2. prepare data for the generic engine ----
         y_true_all = df_work[self.true_col].to_numpy(dtype=float)
         all_pred_arrays = {
             pc: df_work[pc].to_numpy(dtype=float) for pc in self.pred_cols
         }
 
-        # ---- 3. 循环每个预测列并计算指标 ----
+        # ---- 3. compute metrics for each prediction column ----
         results_frames = []
         for pred_col, y_pred_all in all_pred_arrays.items():
             res_all = y_pred_all - y_true_all
@@ -343,7 +344,7 @@ class DataFrameAnalyzer:
                     metric_values.append(fn(**call_kwargs))
                 metric_results[metric_name] = np.array(metric_values)
 
-            # ---- 4. 构建当前预测列的结果DataFrame ----
+            # ---- 4. build the result DataFrame for the current prediction ----
             if group_list:
                 group_codes_unraveled = np.unravel_index(unique_groups, group_shapes)
                 group_df_data = {
