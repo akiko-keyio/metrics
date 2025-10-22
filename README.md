@@ -36,10 +36,13 @@ analyzer = DataFrameAnalyzer(df, ["ztd_nwm"], "ztd_gnss")
 report = analyzer.summary(
     group=["site", "season"],
     metrics=("rms", "bias", "std"),
-    include_marginals=True,
+    include_marginals=["site", "season"],
 )
 print(report.head())
 ```
+
+Pass a single column name (e.g. `"site"`) to compute marginals for just that
+dimension, or provide a list to include multiple marginal totals.
 
 ## Custom metrics
 

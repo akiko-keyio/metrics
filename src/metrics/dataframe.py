@@ -49,9 +49,25 @@ class DataFrameAnalyzer:
         *,
         engine: str = "auto",
         ddof: int = 1,
-        include_marginals: bool = False,
+        include_marginals: str | list[str] | None = None,
     ) -> pd.DataFrame:
-        """Compute error metrics, optionally grouped by the given columns."""
+        """
+        Compute error metrics, optionally grouped by the given columns.
+
+        Parameters
+        ----------
+        group
+            Columns to group by. ``None`` or ``"total"`` computes overall totals.
+        metrics
+            Additional metric names to compute alongside the defaults.
+        engine
+            Backend used for computation. ``"auto"`` chooses the fastest option.
+        ddof
+            Delta degrees of freedom forwarded to metrics that rely on variance.
+        include_marginals
+            Subset of the grouping columns for which marginal totals should be
+            added. When ``None`` (default) no additional rows are computed.
+        """
         if not isinstance(ddof, int) or ddof < 0:
             raise ValueError("ddof must be a non-negative integer.")
 
@@ -79,7 +95,17 @@ class DataFrameAnalyzer:
         else:
             result = self._summary_pandas(group, requested, ddof=ddof)
 
-        if not include_marginals or not group_list or result.empty:
+        if include_marginals is None:
+            include_marginals_set: set[str] = set()
+        elif isinstance(include_marginals, str):
+            include_marginals_set = {include_marginals}
+        else:
+            include_marginals_set = set(include_marginals)
+
+        if include_marginals_set - set(group_list):
+            raise ValueError("include_marginals must be a subset of the group columns.")
+
+        if not include_marginals_set or not group_list or result.empty:
             return result
 
         metrics_cols = [
@@ -106,13 +132,15 @@ class DataFrameAnalyzer:
                 metrics=metrics,
                 engine=engine,
                 ddof=ddof,
-                include_marginals=False,
+                include_marginals=None,
             )
 
             if subset_df.empty:
                 continue
 
             aggregated_cols = [col for col, keep in zip(group_list, mask) if not keep]
+            if any(col not in include_marginals_set for col in aggregated_cols):
+                continue
             for col in aggregated_cols:
                 subset_df[col] = total_label
             for col in group_list:

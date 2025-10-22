@@ -1,6 +1,6 @@
 import numpy as np
 import pandas as pd
-from pytest import approx
+from pytest import approx, raises
 
 from metrics import DataFrameAnalyzer, register_metric
 
@@ -61,7 +61,7 @@ def test_summary_with_marginals_numpy():
         group=["site", "season"],
         engine="numpy",
         ddof=0,
-        include_marginals=True,
+        include_marginals=["site", "season"],
     )
 
     total_label = DataFrameAnalyzer._TOTAL_LABEL
@@ -99,6 +99,62 @@ def test_summary_with_marginals_numpy():
         assert row["bias"] == approx(metrics["bias"])
         assert row["rms"] == approx(metrics["rms"])
         assert row["std"] == approx(metrics["std"])
+
+
+def test_summary_with_partial_marginals():
+    df = pd.DataFrame(
+        {
+            "site": ["A", "A", "B", "B"],
+            "season": ["Winter", "Summer", "Winter", "Summer"],
+            "pred": [1.4, 2.5, 1.7, 4.2],
+            "true": [1.0, 2.0, 1.5, 4.5],
+            "time": pd.to_datetime(
+                [
+                    "2024-01-15",
+                    "2024-06-15",
+                    "2024-01-20",
+                    "2024-06-20",
+                ]
+            ),
+        }
+    )
+    analyzer = DataFrameAnalyzer(df, "pred", "true")
+    out = analyzer.summary(
+        group=["site", "season"],
+        include_marginals="site",
+        ddof=0,
+    )
+
+    total_label = DataFrameAnalyzer._TOTAL_LABEL
+    observed_groups = {(row["site"], row["season"]) for _, row in out.iterrows()}
+    assert observed_groups == {
+        ("A", "Winter"),
+        ("A", "Summer"),
+        ("B", "Winter"),
+        ("B", "Summer"),
+        (total_label, "Winter"),
+        (total_label, "Summer"),
+    }
+
+    winter_row = out[(out["site"] == total_label) & (out["season"] == "Winter")].iloc[0]
+    residuals = df[df["season"] == "Winter"]["pred"] - df[df["season"] == "Winter"]["true"]
+    assert winter_row["bias"] == approx(residuals.mean())
+
+
+def test_summary_with_invalid_marginal_raises():
+    df = pd.DataFrame(
+        {
+            "site": ["A", "B"],
+            "pred": [1.0, 2.0],
+            "true": [1.1, 1.9],
+        }
+    )
+    analyzer = DataFrameAnalyzer(df, "pred", "true")
+
+    with raises(ValueError) as excinfo:
+        analyzer.summary(group="site", include_marginals="season")
+
+    assert "subset" in str(excinfo.value)
 
 
 def test_summary_total_includes_var_with_generic_engine():
