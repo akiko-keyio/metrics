@@ -40,6 +40,8 @@ class DataFrameAnalyzer:
         )
         self.pred_col = pred_col
 
+    _TOTAL_LABEL = "ALL"
+
     def summary(
         self,
         group: str | list[str] | None = "total",
@@ -47,6 +49,7 @@ class DataFrameAnalyzer:
         *,
         engine: str = "auto",
         ddof: int = 1,
+        include_marginals: bool = False,
     ) -> pd.DataFrame:
         """Compute error metrics, optionally grouped by the given columns."""
         if not isinstance(ddof, int) or ddof < 0:
@@ -61,13 +64,70 @@ class DataFrameAnalyzer:
         bincount_supported = {"rms", "bias", "std", "r2"}
         use_bincount = requested.issubset(bincount_supported)
 
+        if group in (None, "total"):
+            group_list: List[str] = []
+        else:
+            group_list = (
+                [group] if isinstance(group, str) else list(cast(list[str], group))
+            )
+
         if engine == "numpy" or (engine == "auto"):
             if use_bincount:
-                return self._summary_numpy_bincount(group, requested, ddof=ddof)
+                result = self._summary_numpy_bincount(group, requested, ddof=ddof)
             else:
-                return self._summary_numpy_generic(group, requested, ddof=ddof)
+                result = self._summary_numpy_generic(group, requested, ddof=ddof)
+        else:
+            result = self._summary_pandas(group, requested, ddof=ddof)
 
-        return self._summary_pandas(group, requested, ddof=ddof)
+        if not include_marginals or not group_list or result.empty:
+            return result
+
+        metrics_cols = [
+            col for col in result.columns if col not in set(group_list + ["var"])
+        ]
+
+        marginal_frames = []
+        total_label = self._TOTAL_LABEL
+
+        for mask in self._iter_group_masks(len(group_list)):
+            if all(mask):
+                continue
+            subset_cols = [col for col, keep in zip(group_list, mask) if keep]
+            subset_group: str | list[str] | None
+            if not subset_cols:
+                subset_group = None
+            elif len(subset_cols) == 1:
+                subset_group = subset_cols[0]
+            else:
+                subset_group = subset_cols
+
+            subset_df = self.summary(
+                subset_group,
+                metrics=metrics,
+                engine=engine,
+                ddof=ddof,
+                include_marginals=False,
+            )
+
+            if subset_df.empty:
+                continue
+
+            aggregated_cols = [col for col, keep in zip(group_list, mask) if not keep]
+            for col in aggregated_cols:
+                subset_df[col] = total_label
+            for col in group_list:
+                if col not in subset_df.columns:
+                    subset_df[col] = total_label
+
+            subset_df = subset_df[group_list + ["var"] + metrics_cols]
+            marginal_frames.append(subset_df)
+
+        if not marginal_frames:
+            return result
+
+        combined = pd.concat([result, *marginal_frames], ignore_index=True)
+        combined = combined.drop_duplicates(subset=group_list + ["var"], keep="first")
+        return combined
 
     # ------------------------------------------------------------------ #
     # Private Helper Methods for Pre-processing
@@ -202,6 +262,14 @@ class DataFrameAnalyzer:
             .reset_index()
         )
         return out[keys + sorted(list(metrics))]
+
+    def _iter_group_masks(self, n: int) -> Iterable[tuple[bool, ...]]:
+        """Yield boolean masks representing marginal group selections."""
+        if n <= 0:
+            return []
+        from itertools import product
+
+        return cast(Iterable[tuple[bool, ...]], tuple(product([False, True], repeat=n)))
 
     # ------------------------------------------------------------------ #
     # NumPy Engines
