@@ -421,7 +421,7 @@ class DataFrameAnalyzer:
                 }
             else:
                 group_df_data = {}
-            res_df = pd.DataFrame(group_df_data)
+            res_df = pd.DataFrame(group_df_data, index=np.arange(len(unique_groups)))
             res_df["var"] = pred_col
             for metric_name, values in metric_results.items():
                 res_df[metric_name] = values

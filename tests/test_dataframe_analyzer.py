@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 from pytest import approx
 
-from metrics import DataFrameAnalyzer
+from metrics import DataFrameAnalyzer, register_metric
 
 
 def test_summary_total_numpy():
@@ -99,3 +99,22 @@ def test_summary_with_marginals_numpy():
         assert row["bias"] == approx(metrics["bias"])
         assert row["rms"] == approx(metrics["rms"])
         assert row["std"] == approx(metrics["std"])
+
+
+def test_summary_total_includes_var_with_generic_engine():
+    @register_metric("p95")
+    def _p95(res: np.ndarray) -> float:
+        return float(np.nanpercentile(res, 95))
+
+    df = pd.DataFrame(
+        {
+            "pred": [1.1, 2.5, 3.4, 4.2],
+            "true": [1.0, 2.0, 3.0, 4.0],
+        }
+    )
+
+    analyzer = DataFrameAnalyzer(df, "pred", "true")
+    out = analyzer.summary(group=None, metrics=("rms", "bias", "std", "p95"))
+
+    assert list(out["var"]) == ["pred"]
+    assert out.loc[0, "p95"] == approx(0.485)
