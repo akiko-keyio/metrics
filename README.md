@@ -33,7 +33,11 @@ from metrics import DataFrameAnalyzer
 
 df = pd.read_parquet("data/train.parquet")
 analyzer = DataFrameAnalyzer(df, ["ztd_nwm"], "ztd_gnss")
-report = analyzer.summary(group=["site", "season"], metrics=("rms", "bias", "std"))
+report = analyzer.summary(
+    group=["site", "season"],
+    metrics=("rms", "bias", "std"),
+    include_marginals=True,
+)
 print(report.head())
 ```
 
